@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include "functions.h"
 
 using namespace std;
 using namespace cv;
@@ -14,29 +15,32 @@ void getDiameter(Mat& thresholdMat, int d[3]){
     //int base_x0,base_xf,base_y; //diameter of the base
     int mat_rows  = thresholdMat.size[0],
         mat_cols  = thresholdMat.size[1],
-		base_xf   = 0,
-    	base_x0   = 0,
+		base_xf   = mat_cols/2,
+    	base_x0   = mat_cols/2,
     	base_y    = 0;
 
-    for (int i = 0; i < mat_cols/2; i++) {
+    for(int j = mat_rows/2; j < mat_rows; j++){
 		//navegue as colunas até encontrar uma que seja zero
 		//a partir do meio da imagem
-		if ((int)thresholdMat.at<uchar>(3*mat_rows/4+200,i) > 100) {
-			//cout << "\n posição: " << "x: " << j << "y: " << i;
-			base_x0 = i;
-			break;
-		}
+    	for(int i = 0; i < mat_cols/2; i++){
+    		if ((int)thresholdMat.at<uchar>(j,i) > 100 && base_x0 > i) {
+    			//cout << "\n posição: " << "x: " << j << "y: " << i;
+    			base_x0 = i;
+    		}
+    	}
 	}
-    for (int i = mat_cols; i > mat_cols/2; i--) {
+    for(int j = mat_rows/2; j < mat_rows; j++) {
     	//navegue as colunas até encontrar uma que seja zero
     	//a partir do meio da imagem
-    	if ((int)thresholdMat.at<uchar>(3*mat_rows/4+200,i) > 100) {
-    		//cout << "\n posição: " << "x: " << j << "y: " << i;
-    		base_xf = i;
-    		break;
+
+    	for(int i = mat_cols; i > mat_cols/2; i--){
+    	    if ((int)thresholdMat.at<uchar>(j,i) > 100 && i > base_xf) {
+    	    	//cout << "\n posição: " << "x: " << j << "y: " << i;
+    	    	base_xf = i;
+    	    }
     	}
     }
-    for (int i = 0; i < mat_rows; i++) {
+    for (int i = mat_rows; i > mat_rows/2; i--) {
     	//navegue as colunas até encontrar uma que seja zero
     	//a partir do meio da imagem
 
@@ -46,44 +50,15 @@ void getDiameter(Mat& thresholdMat, int d[3]){
     		break;
     	}
     }
+    rectangle(thresholdMat, Point(base_x0,base_y), Point(base_xf,mat_rows/2), Scalar(255,255,255), 3);
+    namedWindow("win", WINDOW_FREERATIO);
+    imshow("win", thresholdMat);
+    waitKey(0);
 	d[0] = base_xf - base_x0; //diametro externo
 	d[1] = base_x0 + d[0]/2; //linha de centro
 	d[2] = base_y; // altura da base
 
     cout << d[0] << " " << d[1]<< " " << d[2] << "\n";
-	/* Versão anterior da função
-	//o diametro do tubo na base
-	//começe da última linha até a primeira
-	for (int i = thg.size[0]-1; i > 0; i--) {
-		//navegue as colunas até encontrar uma que seja zero
-		//a partir do meio da imagem
-		for (int j = thg.size[1] / 2; j < thg.size[1]; j++){
-			if ((int)thg.at<uchar>(i, j) < 100) {
-				//cout << "\n posição: " << "x: " << j << "y: " << i;
-				xd[1] = j;
-				break;
-			}
-		}
-		for (int j = thg.size[1]/2; j > 0; j--) {
-			if ((int)thg.at<uchar>(i, j) < 100) {
-				//cout << "\n posição: " << "x: " << j << "y: " << i;
-				xd[0] = j;
-				break;
-			}
-		}
-		if ((int)thg.at<uchar>(i, xd[1]) < 100) {
-			yd[0] = i;
-			break;
-		}
-	}
-
-	//isolamos pontos de interesse na base agora vamos tentar
-	//isolar estruturas maiores que o diâmetro xd[1] - xd[0]
-    d_ext = (xd[1] - xd[0]);
-	x_celine = xd[0]+d_ext/2-1;
-
-	d_in = d_ext - 30; //empírico
-    */
 }
 
 void hsvImProc(Mat& src,Mat& thh){
@@ -165,6 +140,7 @@ int main(int argc, char* argv[])
 	//alterar para o número de imagens desejado.
 
 	ostringstream setbuffer;
+	vector<double> lambda, height_bed;
 
 	for(int c = 1;c <= 900 ;c++){
 
@@ -219,18 +195,21 @@ int main(int argc, char* argv[])
 					Scalar(255,255,0),3);
 		}
 
-		buffer = to_string(c);
-        imwrite("frames/" + buffer + ".jpg",wrt);
-         for(int j=0;j<plc;j++){
-        	 plugInfo << setw(10) << setprecision(4) << ((float)(c-1))/60.0 << " "
+        imwrite("frames/image" + setbuffer.str() + ".jpg",wrt);
+
+        for(int j=0;j<plc;j++){
+        	lambda.push_back(0.0254*((double)(p_d[j]-p_u[j]))/(double)d_in);
+        	plugInfo << setw(10) << setprecision(4) << ((float)(c-1))/60.0 << " "
                       << setw(10) << setprecision(4) << 0.0254*((float)(base_height-p_d[j]))/(float)d_in << " "
                       << setw(10) << setprecision(4) << ((float)(c-1))/60.0 << " "
                       << setw(10) << setprecision(4) << 0.0254*((float)(base_height-p_u[j]))/(float)d_in
                       << setw(10) << setprecision(4) << ((float)(c-1))/60.0 << " "
-                      << setw(10) << setprecision(4) << 0.0254*((float)(p_d[j]-p_u[j]))/(float)d_in << "\n";
+                      << setw(10) << setprecision(4) << 0.0254*((float)(p_d[j]-p_u[j]))/(float)d_in  << "\n";
          }
          arquivo << setw(10) << setprecision(4) << ((float)(c-1))/60.0 << " "
                  << setw(10) << setprecision(4) << 0.0254*((float)(base_height-bed_height)/(float)d_in) << "\n";
+
+         height_bed.push_back(0.0254*((double)(base_height-bed_height)/(double)d_in));
          //Dados do Estado do Leito
          //cout << "Número de plugs: " << plc <<"\n";
          //cout << "Altura do plug " << c << " - d: " <<25.4*(float)((p_d[c]-p_u[c])/(float)d_in) <<"\n";
@@ -240,7 +219,7 @@ int main(int argc, char* argv[])
           * }
           */
 
-         cout << x_celine << " "<< d_in << " " << base_height << "\n";
+         //cout << x_celine << " "<< d_in << " " << base_height << "\n";
 
 
          src.release();
@@ -253,44 +232,21 @@ int main(int argc, char* argv[])
          bed_height = 0, plc = 0;
 	}
 
+	double data_height, data_lambda, data_lambda_deviation;
+
+	data_height = average(height_bed);
+	data_lambda = average(lambda);
+	data_lambda_deviation = standaddeviation(lambda);
+
+	cout << "hmf:         " << data_height << "\n";
+	cout << "lambda:      " << data_lambda << "\n";
+	cout << "dev:         " << data_lambda_deviation << "\n";
+	cout << "lambda/norm: " << data_lambda/0.0254 << "\n";
+	cout << "dev/norm:    " << data_lambda_deviation/0.0254 << "\n";
+
 	arquivo.close();
 	plugInfo.close();
 
 	return 0;
 
 }
-
-/*Versões anteriores do programa
-clo = getStructuringElement(MORPH_RECT,Size(1,3));
-morphologyEx(thh,thh,MORPH_CLOSE,clo);
-
-
-                line(src,Point(x_celine,src.size[0]/2),Point(x_celine,src.size[0]),Scalar(255,0,0),1,LINE_AA);
-
-                Mostra os resultados
-
-                for(int j = 0; j <= plc; j++){
-                rectangle(src, Rect(Point(x_celine-d_in/2,p_d[j]), Point(x_celine+d_in/2,p_u[j])), Scalar(255,255,0), 5);
-                }
-                namedWindow("imagem", WINDOW_FREERATIO);
-                imshow("imagem", src);
-                namedWindow("imagem2", WINDOW_FREERATIO);
-                imshow("imagem2", thh);
-                waitKey(0);
-                */
-
-/*
-Pode servir para saber se a matriz foi binarizada corretamente
-for (int j = 0; j < imagem.size[0]; j++) {
-    for (int i = 0; i < 40; i++) {
-        cout << (int)imagem.at<uchar>(j, i)/10 << " ";
-    }
-    cout << "\n";
-}
-	rectangle(imcolor, Rect(Point(x_celine-d/2, p_d[0]), Point(x_celine + d/2, p_u[0])), Scalar(0, 255, 0), 3);
-	rectangle(imcolor, Rect(Point(x_celine - d / 2, p_d[1]), Point(x_celine + d / 2, p_u[1])), Scalar(0, 255, 0), 3);
-	namedWindow("HSVinRange", WINDOW_FREERATIO);
-	imshow("HSVinRange", thh);
-	namedWindow("graythresh", WINDOW_FREERATIO);
-	imshow("graythresh", thg);
-*/

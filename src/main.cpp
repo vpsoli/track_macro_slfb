@@ -52,13 +52,13 @@ void getDiameter(Mat& thresholdMat, int d[3]){
     }
     rectangle(thresholdMat, Point(base_x0,base_y), Point(base_xf,mat_rows/2), Scalar(255,255,255), 3);
     namedWindow("win", WINDOW_FREERATIO);
-    imshow("win", thresholdMat);
-    waitKey(0);
+    //imshow("win", thresholdMat);
+    //waitKey(0);
 	d[0] = base_xf - base_x0; //diametro externo
 	d[1] = base_x0 + d[0]/2; //linha de centro
 	d[2] = base_y; // altura da base
 
-    cout << d[0] << " " << d[1]<< " " << d[2] << "\n";
+    //cout << d[0] << " " << d[1]<< " " << d[2] << "\n";
 }
 
 void hsvImProc(Mat& src,Mat& thh){
@@ -68,7 +68,7 @@ void hsvImProc(Mat& src,Mat& thh){
 
     cvtColor(src, ihs, COLOR_RGB2HSV);
     blur(ihs,blh, Size(3,3),Point(-1,-1));
-	inRange(blh,Scalar(10,0,0),Scalar(130,20,255),thh);
+	inRange(blh,Scalar(0,0,100),Scalar(255,1,255),thh);
 
 	for(int i=0;i<3;i++){
         mrph = getStructuringElement(MORPH_RECT,Size(2*i+1,2*i+1));
@@ -144,16 +144,16 @@ int main(int argc, char* argv[])
 
 	for(int c = 1;c <= 900 ;c++){
 
-		//rastreie pela linha de centro os plugs
-        /*
-        sprintf_s(num,sizeof(num),"%05d",c);
-        */
-
 		setbuffer << setw(4) << setfill('0') << c;
 		path = "input/image" + setbuffer.str() +".jpg";
 		path = samples::findFile(path);
 		src = imread(path, IMREAD_COLOR);
 
+		//cout << path <<"\n";
+
+		if(src.empty()){
+			return -1;
+		}
 
 		hsvImProc(src,thh);
 
@@ -165,7 +165,7 @@ int main(int argc, char* argv[])
 				while((lineDensity(thh,it,x_celine-d_in/2,x_celine+d_in/2)/255 > 0.50)&& (it > 0)){
 					it -= 1;
 					//cout << lineDensity(thh,it,x_celine-d_in/2,x_celine+d_in/2)/255 << " - in\n";
-					}
+				}
 				p_u[plc] = it;
 				plc +=1;
 			}else{
@@ -188,23 +188,23 @@ int main(int argc, char* argv[])
 				j = j-1;
 			}
 		}
+
 		src.copyTo(wrt);
 		for( int j = 0; j < plc; j++){
 			rectangle(wrt, Point(x_celine-d_in/2,p_u[j]),
 					Point(x_celine+d_in/2,p_d[j]),
 					Scalar(255,255,0),3);
 		}
-
         imwrite("frames/image" + setbuffer.str() + ".jpg",wrt);
 
         for(int j=0;j<plc;j++){
         	lambda.push_back(0.0254*((double)(p_d[j]-p_u[j]))/(double)d_in);
         	plugInfo << setw(10) << setprecision(4) << ((float)(c-1))/60.0 << " "
-                      << setw(10) << setprecision(4) << 0.0254*((float)(base_height-p_d[j]))/(float)d_in << " "
-                      << setw(10) << setprecision(4) << ((float)(c-1))/60.0 << " "
-                      << setw(10) << setprecision(4) << 0.0254*((float)(base_height-p_u[j]))/(float)d_in
-                      << setw(10) << setprecision(4) << ((float)(c-1))/60.0 << " "
-                      << setw(10) << setprecision(4) << 0.0254*((float)(p_d[j]-p_u[j]))/(float)d_in  << "\n";
+                     << setw(10) << setprecision(4) << 0.0254*((float)(base_height-p_d[j]))/(float)d_in << " "
+                     << setw(10) << setprecision(4) << ((float)(c-1))/60.0 << " "
+                     << setw(10) << setprecision(4) << 0.0254*((float)(base_height-p_u[j]))/(float)d_in
+                     << setw(10) << setprecision(4) << ((float)(c-1))/60.0 << " "
+                     << setw(10) << setprecision(4) << 0.0254*((float)(p_d[j]-p_u[j]))/(float)d_in  << "\n";
          }
          arquivo << setw(10) << setprecision(4) << ((float)(c-1))/60.0 << " "
                  << setw(10) << setprecision(4) << 0.0254*((float)(base_height-bed_height)/(float)d_in) << "\n";
@@ -248,5 +248,4 @@ int main(int argc, char* argv[])
 	plugInfo.close();
 
 	return 0;
-
 }
